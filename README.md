@@ -1,6 +1,10 @@
 # stone
 
-## @Wither generates with* methods
+Handy little macros.
+
+## @Wither 
+
+Generates with* methods. Why? Bit more readable than named args, autocomplete is nicer, formatting also.
 
 ```scala
 @Wither
