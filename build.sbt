@@ -1,3 +1,5 @@
+lazy val supportedScalaVersions = List("2.12.8", "2.13.1")
+
 inThisBuild(
   List(
     organization := "ba.sake",
@@ -6,10 +8,17 @@ inThisBuild(
   )
 )
 
+lazy val root = (project in file("."))
+  .aggregate(stoneMacros, stoneMacrosTests)
+  .settings(
+    crossScalaVersions := Nil,
+    publish / skip := true
+  )
+
 lazy val stoneMacros = (project in file("macros"))
   .settings(
     name := "stone-macros",
-    crossScalaVersions := Seq("2.12.8", "2.13.1"),
+    crossScalaVersions := supportedScalaVersions,
     libraryDependencies ++= Seq(
       "org.scala-lang" % "scala-reflect" % scalaVersion.value
     ),
@@ -17,20 +26,36 @@ lazy val stoneMacros = (project in file("macros"))
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, n)) if n >= 13 => Nil
         case _ =>
-          List("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+          List(compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full))
       }
     },
     Compile / scalacOptions ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, n)) if n >= 13 => "-Ymacro-annotations" :: Nil
+        case Some((2, n)) if n >= 13 => List("-Ymacro-annotations")
         case _                       => Nil
       }
     }
   )
 
-lazy val stoneMacrosExample = (project in file("example"))
+lazy val stoneMacrosTests = (project in file("tests"))
   .settings(
-    name := "stone-example",
-    scalacOptions += "-Ymacro-annotations"
+    name := "stone-tests",
+    crossScalaVersions := supportedScalaVersions,
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "3.0.8" % "test"
+    ),
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n >= 13 => Nil
+        case _ =>
+          List(compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full))
+      }
+    },
+    Compile / scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, n)) if n >= 13 => List("-Ymacro-annotations")
+        case _                       => Nil
+      }
+    }
   )
   .dependsOn(stoneMacros)
