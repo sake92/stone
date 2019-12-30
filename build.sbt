@@ -40,6 +40,7 @@ lazy val stoneMacros = (project in file("macros"))
 lazy val stoneMacrosTests = (project in file("tests"))
   .settings(
     name := "stone-tests",
+    publish / skip := true,
     crossScalaVersions := supportedScalaVersions,
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.0.8" % "test"
