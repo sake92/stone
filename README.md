@@ -1,4 +1,4 @@
-# Stone [![Maven Central](https://img.shields.io/maven-central/v/ba.sake/stone-macros_2.13.svg?style=flat-square&label=Scala+2.13)](https://mvnrepository.com/artifact/ba.sake/stone-macros) [![Build Status](	https://img.shields.io/travis/sake92/stone-macros/master.svg?logo=travis&style=flat-square)](https://travis-ci.org/sake92/stone-macros) 
+# Stone [![Maven Central](https://img.shields.io/maven-central/v/ba.sake/stone-macros_2.13.svg?style=flat-square&label=Scala+2.13)](https://mvnrepository.com/artifact/ba.sake/stone-macros) [![Build Status](	https://img.shields.io/travis/sake92/stone-macros/master.svg?logo=travis&style=flat-square)](https://travis-ci.org/sake92/stone) 
 
 Handy little macros.
 
