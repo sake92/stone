@@ -4,23 +4,29 @@ Handy little macros.
 
 ## @Wither 
 
-Generates with* methods. Why? Bit more readable than named args, autocomplete is nicer, formatting also.
+Generates with* methods. Why? :  
+- more readable than named args
+- autocomplete is nicer
+- additional `with`ers for `Option`, `List` etc
 
+If you have this:
 ```scala
 @Wither
-class ExampleData(val x: Int, val y: Int)
+class MyClass(
+  simple: Int,
+  opt: Option[Int],
+  list: List[Int]
+)
 ```
-generates
+you get to write:
 ```scala
-class ExampleData(val x: Int, val y: Int) {
-  def withX(x: Int) = new ExampleData(x = x, y = y)
-  def withY(y: Int) = new ExampleData(x = x, y = y)
-}
-```
-so you can do
-```scala
-val data = new ExampleData(5, 6)
-val data2 = data.withX(7).withY(9)
+val data = new ExampleData(1, Some(10), List(100))
 
-println(data2) // ExampleData(7, 9)
+val data2 = data.withSimple(2)        // MyClass(2, Some(10), List(100))
+
+val dataOpt1 = data.withOpt(Some(11)) // MyClass(2, Some(11), List(100))
+val dataOpt2 = data.withOpt(12)       // MyClass(2, Some(12), List(100))
+
+val dataList1 = data.withList(List(101, 102)) // MyClass(7, None, List(101,102))
+val dataList2 = data.withList(103, 104)       // MyClass(7, None, List(103,104))
 ```

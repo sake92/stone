@@ -3,6 +3,14 @@ package ba.sake.stone
 import org.scalatest.{FlatSpec, Matchers}
 import fixtures._
 
+@Wither
+class Test2(
+    val simple: Data,
+    var variable: Data,
+    val opt: Option[Data],
+    val list: List[Data]
+)
+
 class ClassTest extends FlatSpec with Matchers {
   val obj = new Test2(Data(1), Data(2), None, Nil)
 
