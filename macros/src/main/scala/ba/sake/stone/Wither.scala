@@ -7,7 +7,6 @@ import scala.reflect.macros.whitebox.Context
 
 // TODO
 // - multiple params lists
-// - overrideable withX
 // - hide private members ?
 
 @compileTimeOnly("enable macro paradise to expand macro annotations")
@@ -15,8 +14,6 @@ class Wither extends StaticAnnotation {
   def macroTransform(annottees: Any*): Any = macro witherMacro.impl
 }
 
-// class MyClass(val abc: Int)
-// gets a method withAbc(abc: Int): MyClass
 private object witherMacro {
 
   def impl(c: Context)(annottees: c.Expr[Any]*): c.Expr[Any] = {
@@ -40,41 +37,43 @@ private object witherMacro {
             Some(tname)
           case _ => None
         }
+        allParams.head.name
+        val newWitherMethods = allParams.flatMap { // param =>
+          case param @ ValDef(mods, paramName, paramTpt, _) =>
+            val withDefIdent = TermName("with" + paramName.decoded.capitalize)
 
-        val newWitherMethods = allParams.flatMap { param =>
-          val fn           = param.name.decoded
-          val withDefIdent = TermName("with" + fn.capitalize)
+            val isUserDeclared = methodDefs.contains(withDefIdent)
+            if (isUserDeclared) None
+            else {
+              val maybeHKT = paramTpt match {
+                case AppliedTypeTree(hkt, args) => Some(hkt -> args)
+                case other                      => None
+              }
 
-          val isUserDeclared = methodDefs.contains(withDefIdent)
-          if (isUserDeclared) None
-          else {
-            val paramTpe = c.typecheck(q"${param.tpt}", c.TYPEmode, silent = true)
-            val maybeOptionWith =
-              if (paramTpe.tpe <:< typeOf[Option[_]]) { // withX(x:T) instead of withX(Some(x))
-                val paramName        = param.name
-                val paramNameDecoded = q"$paramName"
-                val paramOptTpe      = paramTpe.tpe.typeArgs.head
-                val namedArg         = q"$paramName = Some($paramNameDecoded)"
-                val newArgs = namedArgs.filterNot(
-                  _.asInstanceOf[Assign].lhs.asInstanceOf[Ident].name == paramName
-                ) :+ namedArg
-                Some(q"def $withDefIdent($paramName: $paramOptTpe) = new $tpname(..$newArgs)")
-              } else None
-            val maybeListWith =
-              if (paramTpe.tpe <:< typeOf[scala.collection.immutable.List[_]]) { // withXs(xs1,xs2) instead of withXs(Seq(xs1,xs2))
-                val paramName        = param.name
-                val paramNameDecoded = q"$paramName"
-                val paramListTpe     = paramTpe.tpe.typeArgs.head
-                val namedArg         = q"$paramName = $paramNameDecoded.toList"
-                val newArgs = namedArgs.filterNot(
-                  _.asInstanceOf[Assign].lhs.asInstanceOf[Ident].name == paramName
-                ) :+ namedArg
-                Some(q"def $withDefIdent($paramName: $paramListTpe*) = new $tpname(..$newArgs)")
-              } else None
-            List(
-              q"def $withDefIdent($param) = new $tpname(..$namedArgs)"
-            ) ++ maybeOptionWith ++ maybeListWith
-          }
+              val maybeHktWith: Option[DefDef] = maybeHKT match {
+                case None => None
+                case Some((hkt, args)) =>
+                  val paramNameIdent = q"$paramName"
+                  val wrappedTpe     = args.head
+                  if (hkt.toString == "Option") { // withX(x) instead of withX(Some(x))
+
+                    val namedArg = q"$paramName = Some($paramNameIdent)"
+                    val newArgs = namedArgs.filterNot(
+                      _.asInstanceOf[Assign].lhs.asInstanceOf[Ident].name == paramName
+                    ) :+ namedArg
+                    Some(q"def $withDefIdent($paramName: $wrappedTpe) = new $tpname(..$newArgs)")
+                  } else if (hkt.toString == "List") { // withX(xs) instead of withX(List(x1,x2))
+                    val namedArg = q"$paramName = $paramNameIdent.toList"
+                    val newArgs = namedArgs.filterNot(
+                      _.asInstanceOf[Assign].lhs.asInstanceOf[Ident].name == paramName
+                    ) :+ namedArg
+                    Some(q"def $withDefIdent($paramName: $wrappedTpe*) = new $tpname(..$newArgs)")
+                  } else None
+              }
+              List(
+                q"def $withDefIdent($param) = new $tpname(..$namedArgs)"
+              ) ++ maybeHktWith
+            }
         }
 
         // just add newWitherMethods

@@ -5,13 +5,6 @@ inThisBuild(
     organization := "ba.sake",
     scalaVersion := "2.13.1",
     resolvers += Resolver.sonatypeRepo("releases"),
-    publishTo := {
-      val nexus = "https://oss.sonatype.org/"
-      if (isSnapshot.value)
-        Some("snapshots" at nexus + "content/repositories/snapshots")
-      else
-        Some("releases" at nexus + "service/local/staging/deploy/maven2")
-    },
     licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0.html")),
     developers += Developer("sake92", "Sakib Hadžiavdić", "sakib@sake.ba", url("http://sake.ba")),
     scmInfo := Some(
