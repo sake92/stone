@@ -1,3 +1,4 @@
+
 lazy val supportedScalaVersions = List("2.12.8", "2.13.1")
 
 inThisBuild(
@@ -15,13 +16,15 @@ inThisBuild(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(stoneMacros, stoneMacrosTests)
+  .aggregate(stoneMacros.jvm, stoneMacros.js, stoneMacrosTests)
   .settings(
     crossScalaVersions := Nil,
     publish / skip := true
   )
 
-lazy val stoneMacros = (project in file("macros"))
+lazy val stoneMacros = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("macros"))
   .settings(
     name := "stone-macros",
     crossScalaVersions := supportedScalaVersions,
@@ -65,4 +68,4 @@ lazy val stoneMacrosTests = (project in file("tests"))
       }
     }
   )
-  .dependsOn(stoneMacros)
+  .dependsOn(stoneMacros.jvm)

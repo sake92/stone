@@ -62,7 +62,7 @@ private object witherMacro {
                       _.asInstanceOf[Assign].lhs.asInstanceOf[Ident].name == paramName
                     ) :+ namedArg
                     Some(q"def $withDefIdent($paramName: $wrappedTpe) = new $tpname(..$newArgs)")
-                  } else if (hkt.toString == "List") { // withX(xs) instead of withX(List(x1,x2))
+                  } else if (hkt.toString == "List") { // withX(x1,x2) instead of withX(List(x1,x2))
                     val namedArg = q"$paramName = $paramNameIdent.toList"
                     val newArgs = namedArgs.filterNot(
                       _.asInstanceOf[Assign].lhs.asInstanceOf[Ident].name == paramName
