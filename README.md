@@ -22,11 +22,13 @@ you get to write:
 ```scala
 val data = new ExampleData(1, Some(10), List(100))
 
-val data2 = data.withSimple(2)        // MyClass(2, Some(10), List(100))
+data.withSimple(2)            // MyClass(2, Some(10), List(100))
 
-val dataOpt1 = data.withOpt(Some(11)) // MyClass(2, Some(11), List(100))
-val dataOpt2 = data.withOpt(12)       // MyClass(2, Some(12), List(100))
+data.withOpt(Some(11))        // MyClass(2, Some(11), List(100))
+data.withOpt(12)              // MyClass(2, Some(12), List(100))
 
-val dataList1 = data.withList(List(101, 102)) // MyClass(7, None, List(101,102))
-val dataList2 = data.withList(103, 104)       // MyClass(7, None, List(103,104))
+data.withList(List(101, 102)) // MyClass(7, None, List(101,102))
+data.withList(103, 104)       // MyClass(7, None, List(103,104))
+
+data.withSimple(2).withOpt(12).withList(103, 104) // MyClass(2, Some(12), List(103,104))
 ```
