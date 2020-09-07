@@ -37,7 +37,7 @@ private object witherMacro {
             Some(tname)
           case _ => None
         }
-        allParams.head.name
+
         val newWitherMethods = allParams.flatMap { // param =>
           case param @ ValDef(mods, paramName, paramTpt, _) =>
             val withDefIdent = TermName("with" + paramName.decoded.capitalize)
@@ -85,7 +85,7 @@ private object witherMacro {
     }
 
     val result = annottees.map(_.tree) match {
-      case List(classDef, objectDef) => // if class with companion
+      case List(classDef, objectDef) =>
         q"""
           ${getModifiedClass(classDef)}
           $objectDef

@@ -1,10 +1,11 @@
 
-lazy val supportedScalaVersions = List("2.12.8", "2.13.1")
+lazy val supportedScalaVersions = List("2.12.12", "2.13.3")
 
+// TODO drop 2.12 jer ne podržava LITERAL TYPES
 inThisBuild(
   List(
     organization := "ba.sake",
-    scalaVersion := "2.13.1",
+    scalaVersion := "2.13.3",
     resolvers += Resolver.sonatypeRepo("releases"),
     licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0.html")),
     developers += Developer("sake92", "Sakib Hadžiavdić", "sakib@sake.ba", url("http://sake.ba")),
