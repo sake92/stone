@@ -1,4 +1,3 @@
-
 inThisBuild(
   List(
     organization := "ba.sake",

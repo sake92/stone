@@ -3,7 +3,7 @@ package ba.sake.stone.utils
 import java.net.URI
 import scala.collection.mutable
 
-case class UriData(
+case class UrlData(
     path: String,
     pathParts: Seq[String],
     query: String,
@@ -18,9 +18,9 @@ case class UriData(
   def getFirstQP(name: String): String      = firstQP(name).get
 }
 
-object UriData {
+object UrlData {
 
-  def fromString(str: String): UriData = {
+  def fromString(str: String): UrlData = {
     val uri = URI.create(str)
 
     val path      = uri.getPath
@@ -37,7 +37,7 @@ object UriData {
       case (name, value) => queryParamsMap.addBinding(name, value)
     }
     val queryParamsMapImmutable = queryParamsMap.mapValues(_.toSet).toMap
-    UriData(path, pathParts.toSeq, query, queryParamsMapImmutable)
+    UrlData(path, pathParts.toSeq, query, queryParamsMapImmutable)
   }
 
 }

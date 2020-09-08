@@ -12,7 +12,7 @@ object RoutesExample extends App {
 
   // construct
   val route       = UsersRoute(1, "Sake")(123, Set("q1", "q2"))
-  val url: String = route.uriData.url
+  val url: String = route.urlData.url
   println(s"Constructed: $url")
 
   // deconstruct

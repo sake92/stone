@@ -78,8 +78,8 @@ private object RouteMacro {
                 .mkString("&")
           """
 
-        val uriDataField = q"""val uriData: ba.sake.stone.utils.UriData = 
-            ba.sake.stone.utils.UriData(
+        val urlDataField = q"""val urlData: ba.sake.stone.utils.UrlData = 
+            ba.sake.stone.utils.UrlData(
               path, pathParts, query, queryParams
             )
           """
@@ -94,7 +94,7 @@ private object RouteMacro {
               $queryParamsField
               $queryField
 
-              $uriDataField
+              $urlDataField
         }""", pps, queryParams)
     }
 
@@ -106,10 +106,10 @@ private object RouteMacro {
       val pathExtractors = pps.zipWithIndex.filter(!_._1._3.isDefined).map {
         case ((_, tpt, _), idx) =>
           val tptString = tpt.toString
-          if (tptString == "String") q"uriData.pathParts($idx)"
-          else if (tptString == "Int") q"uriData.pathParts($idx).toInt"
-          else if (tptString == "Long") q"uriData.pathParts($idx).toLong"
-          else if (tptString == "Double") q"uriData.pathParts($idx).toDouble"
+          if (tptString == "String") q"urlData.pathParts($idx)"
+          else if (tptString == "Int") q"urlData.pathParts($idx).toInt"
+          else if (tptString == "Long") q"urlData.pathParts($idx).toLong"
+          else if (tptString == "Double") q"urlData.pathParts($idx).toDouble"
           else c.abort(c.enclosingPosition, s"Can't handle type '$tptString' in path")
       }
 
@@ -132,11 +132,11 @@ private object RouteMacro {
         case ValDef(mods, paramName, paramTpt, _) =>
           val qpName    = paramName.toString
           val tptString = paramTpt.toString
-          if (tptString == "String") q"uriData.getFirstQP($qpName)"
-          else if (tptString == "Int") q"uriData.getFirstQP($qpName).toInt"
-          else if (tptString == "Long") q"uriData.getFirstQP($qpName).toLong"
-          else if (tptString == "Double") q"uriData.getFirstQP($qpName).toDouble"
-          else if (tptString == "Set[String]") q"uriData.getQP($qpName)"
+          if (tptString == "String") q"urlData.getFirstQP($qpName)"
+          else if (tptString == "Int") q"urlData.getFirstQP($qpName).toInt"
+          else if (tptString == "Long") q"urlData.getFirstQP($qpName).toLong"
+          else if (tptString == "Double") q"urlData.getFirstQP($qpName).toDouble"
+          else if (tptString == "Set[String]") q"urlData.getQP($qpName)"
           else c.abort(c.enclosingPosition, s"Can't handle type '$tptString' in query")
       }
 
@@ -155,7 +155,7 @@ private object RouteMacro {
 
       val unapplyDef = q"""
         def unapply(str: String): Option[(..$pathTpes, ..$queryTpes)] = { 
-          val uriData = ba.sake.stone.utils.UriData.fromString(str)
+          val urlData = ba.sake.stone.utils.UrlData.fromString(str)
           // TODO check if every part MATCHES !!!
           Some(( ..$pathExtractors, ..$queryExtractors ))
         }

@@ -14,23 +14,23 @@ class MyRoute(
     val qs: Set[String]
 )
 
-class UriDataTest extends FlatSpec with Matchers {
+class urlDataTest extends FlatSpec with Matchers {
 
-  "Route" should "generate `uriData` property" in {
+  "Route" should "generate `urlData` property" in {
     val r       = new MyRoute("users", 5, "Sake", 7.123)(7, Set("aBc", "deF"))
-    val uriData = r.uriData
-    uriData.path shouldBe "/users/5/Sake/7.123"
-    uriData.pathParts shouldBe Seq("users", "5", "Sake", "7.123")
-    uriData.query shouldBe "a=7&qs=aBc&qs=deF"
-    uriData.queryParams shouldBe Map("a" -> Set("7"), "qs" -> Set("aBc", "deF"))
+    val urlData = r.urlData
+    urlData.path shouldBe "/users/5/Sake/7.123"
+    urlData.pathParts shouldBe Seq("users", "5", "Sake", "7.123")
+    urlData.query shouldBe "a=7&qs=aBc&qs=deF"
+    urlData.queryParams shouldBe Map("a" -> Set("7"), "qs" -> Set("aBc", "deF"))
   }
 
   it should "generate apply method" in {
     val r = MyRoute(5, "Sake", 7.123)(1, Set("q1", "q2"))
-    r.uriData.path shouldBe "/users/5/Sake/7.123"
-    r.uriData.path shouldBe "/users/5/Sake/7.123"
-    r.uriData.path shouldBe "/users/5/Sake/7.123"
-    r.uriData.path shouldBe "/users/5/Sake/7.123"
+    r.urlData.path shouldBe "/users/5/Sake/7.123"
+    r.urlData.path shouldBe "/users/5/Sake/7.123"
+    r.urlData.path shouldBe "/users/5/Sake/7.123"
+    r.urlData.path shouldBe "/users/5/Sake/7.123"
   }
 
   it should "generate unapply method (extractor)" in {
