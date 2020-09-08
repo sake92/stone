@@ -11,7 +11,7 @@ import scala.reflect.macros.whitebox.Context
   *
   * Only handles these types in query:
   * - String, Int, Long, Double
-  * - Option, Set, Seq, List of aboves
+  * - Option, Seq, List, Vector, Array, Buffer of aboves
   */
 @compileTimeOnly("Please enable macro paradise to expand macro annotations")
 class Route extends StaticAnnotation {
@@ -147,7 +147,7 @@ private object RouteMacro {
         case ValDef(mods, paramName, paramTpt, _) =>
           val qpName    = paramName.toString
           val tptString = paramTpt.toString
-          val SeqRegex  = "(Seq|List)\\[(String|Int|Long|Double)\\]".r
+          val SeqLikeRegex  = "(Seq|List|Vector|Array|Buffer)\\[(String|Int|Long|Double)\\]".r
           if (tptString == "String") q"urlData.getFirstQP($qpName)"
           else if (tptString == "Int") q"urlData.getFirstQP($qpName).toInt"
           else if (tptString == "Long") q"urlData.getFirstQP($qpName).toLong"
@@ -160,16 +160,17 @@ private object RouteMacro {
           else if (tptString == "Set[Int]") q"urlData.getQP($qpName).map(_.toInt)"
           else if (tptString == "Set[Long]") q"urlData.getQP($qpName).map(_.toLong)"
           else if (tptString == "Set[Double]") q"urlData.getQP($qpName).map(_.toDouble)"
-          else if (SeqRegex.matches(tptString)) {
+          else if (SeqLikeRegex.matches(tptString)) {
             c.warning(
               paramTpt.pos,
               "Please use `Set` collection! Using an ordered collection can give you unexpected results!"
             )
-            val SeqRegex(_, innerTpe) = tptString
-            if (innerTpe == "String") q"urlData.getQP($qpName).toSeq"
-            else if (innerTpe == "Int") q"urlData.getQP($qpName).toSeq.map(_.toInt)"
-            else if (innerTpe == "Long") q"urlData.getQP($qpName).toSeq.map(_.toLong)"
-            else if (innerTpe == "Double") q"urlData.getQP($qpName).toSeq.map(_.toDouble)"
+            val SeqLikeRegex(seqTpe, innerTpe) = tptString
+            val toSeqLike = TermName(s"to$seqTpe")
+            if (innerTpe == "String") q"urlData.getQP($qpName).$toSeqLike"
+            else if (innerTpe == "Int") q"urlData.getQP($qpName).$toSeqLike.map(_.toInt)"
+            else if (innerTpe == "Long") q"urlData.getQP($qpName).$toSeqLike.map(_.toLong)"
+            else if (innerTpe == "Double") q"urlData.getQP($qpName).$toSeqLike.map(_.toDouble)"
             else c.abort(paramTpt.pos, s"Can't handle type '$tptString' in query")
           } else c.abort(paramTpt.pos, s"Can't handle type '$tptString' in query")
       }
