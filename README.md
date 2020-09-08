@@ -1,10 +1,46 @@
 # Stone [![Maven Central](https://img.shields.io/maven-central/v/ba.sake/stone-macros_2.13.svg?style=flat-square&label=Scala+2.13)](https://mvnrepository.com/artifact/ba.sake/stone-macros) [![Build Status](https://img.shields.io/travis/sake92/stone/master.svg?logo=travis&style=flat-square)](https://travis-ci.com/sake92/stone) 
 
-Handy little macros.
+Scala **2.13 only**!  
+ScalaJS 1 is supported.
 
-## @Wither 
+## @Route
+Generates apply/unapply methods for extracting/constructing URLs. Here's why:  
+- type safe URLs/routes
+- unlike [Play SIRD](https://www.playframework.com/documentation/2.8.x/ScalaSirdRouter) and others, it can also **construct a URL**
 
-Generates with* methods. Why? :  
+In Play, Angular and other frameworks you'd write something like this:  
+`/users/:id/:name ? minAge=:minAge & qs=:qs...`
+
+With `@Route` macro you write this:
+```scala
+@Route
+class UsersRoute(
+    p1: "users", // fixed path
+    val id: Long, // path variable
+    val name: String
+)(
+    val minAge: Int,      // query param, mandatory
+    val opt: Option[Int], // query param, optional
+    val qs: Set[String]   // query param, multi
+)
+
+// construct a URL, type-safely
+val route = UsersRoute(1, "Sake")(123, Set("q1"), Some(18))
+val redirectUrl = route.urlData.url // /users/1/Sake?a=123&qs=q1&minAge=18
+
+// deconstruct a string URL to type-safe data
+"users/1/Sake?minAge=123&qs=q1&qs=q2&opt=456" match {
+  case UsersRoute(id, name, minAge, qs, opt) =>
+    println(s"$id, $name, $minAge, $qs, $opt") // 1, Sake, 123, Set(q1, q2), Some(456)
+  case _ => println("404 Not Found")
+}
+```
+
+---
+
+## @Wither
+
+Generates `with*` methods. Here's why:  
 - more readable than named args
 - autocomplete is nicer
 - additional `with`ers for `Option`, `List` etc
