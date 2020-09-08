@@ -15,13 +15,30 @@ private object RouteMacro {
   def impl(c: Context)(annottees: c.Expr[Any]*): c.Expr[Any] = {
     import c.universe._
 
-    def getModifiedClass(clsTree: Tree) = clsTree match {
+    val result = annottees.map(_.tree) match {
+      case classTree :: others =>
+        val helper = new Helper[c.type](c)(classTree, others.headOption)
+        q"""
+          ${helper.modifiedClass}
+          ${helper.modifiedObject}
+        """
+      case notClass =>
+        c.abort(c.enclosingPosition, "@Route must annotate a class")
+    }
+
+    c.Expr[Any](result)
+  }
+
+  private class Helper[C <: Context](val c: C)(clsTree: C#Tree, maybeObjTree: Option[C#Tree]) {
+    import c.universe._
+
+    val (modifiedClass, pps, qps) = clsTree match {
       case q"""$mods class $tpname[..$tparams] $ctorMods(...$paramss)
                        extends { ..$earlydefns } with ..$parents { $self =>
                 ..$stats
               }""" =>
-        if (paramss.size > 2)
-          c.abort(c.enclosingPosition, "Can't handle more than 2 parameter groups")
+        if (paramss.size != 2)
+          c.abort(c.enclosingPosition, "Route must have exactly 2 parameter groups!")
 
         // path params
         val pathParams = if (paramss.size >= 1) paramss(0) else List.empty
@@ -29,11 +46,21 @@ private object RouteMacro {
           q"private val pathParts: Seq[String] = ${pathParams.map(_.name)}.map(_.toString)"
         val pathField = q"""private val path: String = "/" + pathParts.mkString("/")"""
 
+        val pps: List[(ValDef, Tree, Option[Constant])] = pathParams.map {
+          case param @ ValDef(mods, paramName, paramTpt, _) =>
+            //println( showRaw(paramTpt) ) // ooooooopaaaaaaaa
+            paramTpt match {
+              case SingletonTypeTree(Literal(lit @ Constant(litValue))) =>
+                (param, paramTpt, Some(lit))
+              case _ =>
+                (param, paramTpt, None)
+            }
+        }
+
         // query params
         val queryParams = if (paramss.size == 2) paramss(1) else List.empty
         val queryParamTuples = queryParams.map {
           case param @ ValDef(mods, paramName, paramTpt, _) =>
-            // TODO validirat samo Int, String, Set i Option
             val paramSetTuple = paramTpt match {
               case AppliedTypeTree(hkt, args) =>
                 q"(${paramName.decodedName.toString()}, $paramName.map(_.toString).toSet)"
@@ -57,7 +84,7 @@ private object RouteMacro {
             )
           """
 
-        q"""$mods class $tpname[..$tparams] $ctorMods(...$paramss)
+        (q"""$mods class $tpname[..$tparams] $ctorMods(...$paramss)
                     extends { ..$earlydefns } with ..$parents { $self =>
               ..$stats
 
@@ -68,22 +95,87 @@ private object RouteMacro {
               $queryField
 
               $uriDataField
-        }"""
+        }""", pps, queryParams)
     }
 
-    val result = annottees.map(_.tree) match {
-      case List(classDef, objectDef) =>
-        q"""
-          ${getModifiedClass(classDef)}
-          $objectDef
-        """
-      case List(classDef) =>
-        getModifiedClass(classDef)
-      case notClass =>
-        c.abort(c.enclosingPosition, "@Wither must annotate a class")
+    /* apply && unapply */
+    val modifiedObject = {
+      /* path */
+      val pathFields = pps.filter(!_._3.isDefined)
+      val pathTpes   = pathFields.map(_._2)
+      val pathExtractors = pps.zipWithIndex.filter(!_._1._3.isDefined).map {
+        case ((_, tpt, _), idx) =>
+          val tptString = tpt.toString
+          if (tptString == "String") q"uriData.pathParts($idx)"
+          else if (tptString == "Int") q"uriData.pathParts($idx).toInt"
+          else if (tptString == "Long") q"uriData.pathParts($idx).toLong"
+          else if (tptString == "Double") q"uriData.pathParts($idx).toDouble"
+          else c.abort(c.enclosingPosition, s"Can't handle type '$tptString' in path")
+      }
+
+      val pathParamPairs = pathFields.map(_._1).map {
+        case ValDef(mods, paramName, paramTpt, _) =>
+          q"$paramName: $paramTpt"
+      }
+      val pathParams = pps.map {
+        case (valDef, _, maybeLiteral) =>
+          maybeLiteral match {
+            case Some(lit) => q"$lit"
+            case None      => q"${valDef.name}"
+          }
+      }
+
+      /* query */
+      val queryFields = qps
+      val queryTpes   = queryFields.map(_.tpt)
+      val queryExtractors = qps.map {
+        case ValDef(mods, paramName, paramTpt, _) =>
+          val qpName    = paramName.toString
+          val tptString = paramTpt.toString
+          if (tptString == "String") q"uriData.getFirstQP($qpName)"
+          else if (tptString == "Int") q"uriData.getFirstQP($qpName).toInt"
+          else if (tptString == "Long") q"uriData.getFirstQP($qpName).toLong"
+          else if (tptString == "Double") q"uriData.getFirstQP($qpName).toDouble"
+          else if (tptString == "Set[String]") q"uriData.getQP($qpName)"
+          else c.abort(c.enclosingPosition, s"Can't handle type '$tptString' in query")
+      }
+
+      val queryParamPairs = queryFields.map {
+        case ValDef(mods, paramName, paramTpt, _) =>
+          q"$paramName: $paramTpt"
+      }
+      val queryParams = queryFields.map(_.name)
+
+      /* the main stuff */
+      val applyDef = q"""
+        def apply(..$pathParamPairs)(..$queryParamPairs): ${modifiedClass.name} = { 
+          new ${modifiedClass.name}(..$pathParams)(..$queryParams)
+        }
+      """
+
+      val unapplyDef = q"""
+        def unapply(str: String): Option[(..$pathTpes, ..$queryTpes)] = { 
+          val uriData = ba.sake.stone.utils.UriData.fromString(str)
+          // TODO check if every part MATCHES !!!
+          Some(( ..$pathExtractors, ..$queryExtractors ))
+        }
+      """
+
+      val objTree = maybeObjTree.getOrElse { // create companion if doesnt exist
+        q"""object ${modifiedClass.name.toTermName}"""
+      }
+      objTree match {
+        case q"""$mods object $tpname extends { ..$earlydefns } with ..$parents { $self =>
+                ..$stats
+              }""" =>
+          q"""$mods object $tpname extends { ..$earlydefns } with ..$parents { $self =>
+                ..$stats
+                $applyDef
+                $unapplyDef
+              }"""
+      }
     }
 
-    c.Expr[Any](result)
   }
-  
+
 }
