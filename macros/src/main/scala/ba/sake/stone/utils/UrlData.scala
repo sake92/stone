@@ -29,10 +29,14 @@ object UrlData {
     val pathParts = path.dropWhile(_ == '/').split("/")
 
     val query = Option(uri.getQuery).getOrElse("")
-    val queryParams = query.split("&").toSeq.filter(_.trim.nonEmpty).map { param =>
-      val Array(name, value) = param.split("=")
-      (name, value)
-    }
+    val queryParams = query.split("&").toSeq.filter(_.trim.nonEmpty)
+      .flatMap { param =>
+        val nameValue = param.split("=")
+        if (nameValue.size >= 2) {
+          val Array(name, value, _*) = nameValue
+          Option.when(name.trim.nonEmpty)((name, value))
+        } else None
+      }
     val queryParamsMap = new mutable.HashMap[String, mutable.Set[String]]
       with mutable.MultiMap[String, String]
     queryParams.foreach {

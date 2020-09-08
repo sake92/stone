@@ -10,16 +10,18 @@ class UsersRoute(
     val name: String
 )(
     val a: Int,
-    val qs: Set[String]
+    val qs: Set[String],
+    val opt: Option[Int]
 )
 
 object RoutesExample extends App {
 
-  val route = UsersRoute(1, "Sake")(123, Set("q1", "q2"))
+  val route = UsersRoute(1, "Sake")(123, Set("q1"), None)
   println(s"Constructed: ${route.urlData}")
 
-  "users/1/Sake?a=123&qs=q1&qs=q2" match {
-    case UsersRoute(id, name, a, qs) =>
-      println(s"Deconstructed: $id, $name, $a, $qs")
+  "users/1/Sake?a=123&qs=q1&qs=q2&opt=456" match {
+    case UsersRoute(id, name, a, qs, opt) =>
+      println(s"Deconstructed: $id, $name, $a, $qs, $opt")
+    case _ => println("404 Not Found")
   }
 }

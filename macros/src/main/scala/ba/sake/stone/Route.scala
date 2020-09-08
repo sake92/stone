@@ -5,6 +5,14 @@ import scala.language.experimental.macros
 import scala.annotation.{compileTimeOnly, StaticAnnotation}
 import scala.reflect.macros.whitebox.Context
 
+/**
+  * Only handles these types in path:
+  * - String, Int, Long, Double
+  *
+  * Only handles these types in query:
+  * - String, Int, Long, Double
+  * - Option, Set, Seq, List of aboves
+  */
 @compileTimeOnly("Please enable macro paradise to expand macro annotations")
 class Route extends StaticAnnotation {
   def macroTransform(annottees: Any*): Any = macro RouteMacro.impl
@@ -42,7 +50,7 @@ private object RouteMacro {
 
         // path params
         val pathParams = if (paramss.size >= 1) paramss(0) else List.empty
-        val pathPartsField = // TODO validirat samo Int, String i Seq
+        val pathPartsField =
           q"private val pathParts: Seq[String] = ${pathParams.map(_.name)}.map(_.toString)"
         val pathField = q"""private val path: String = "/" + pathParts.mkString("/")"""
 
@@ -100,6 +108,7 @@ private object RouteMacro {
 
     /* apply && unapply */
     val modifiedObject = {
+
       /* path */
       val pathFields = pps.filter(!_._3.isDefined)
       val pathTpes   = pathFields.map(_._2)
@@ -111,7 +120,12 @@ private object RouteMacro {
           else if (tptString == "Long") q"urlData.pathParts($idx).toLong"
           else if (tptString == "Double") q"urlData.pathParts($idx).toDouble"
           else c.abort(tpt.pos, s"Can't handle type '$tptString' in path")
-//          
+      }
+      val literalValidators = pps.zipWithIndex.filter(_._1._3.isDefined).map {
+        case ((_, tpt, Some(lit)), idx) =>
+          val expected = q"urlData.pathParts($idx)"
+          q"""if ($lit != $expected)
+                throw new IllegalArgumentException("Path literal mismatch")"""
       }
 
       val pathParamPairs = pathFields.map(_._1).map {
@@ -133,12 +147,31 @@ private object RouteMacro {
         case ValDef(mods, paramName, paramTpt, _) =>
           val qpName    = paramName.toString
           val tptString = paramTpt.toString
+          val SeqRegex  = "(Seq|List)\\[(String|Int|Long|Double)\\]".r
           if (tptString == "String") q"urlData.getFirstQP($qpName)"
           else if (tptString == "Int") q"urlData.getFirstQP($qpName).toInt"
           else if (tptString == "Long") q"urlData.getFirstQP($qpName).toLong"
           else if (tptString == "Double") q"urlData.getFirstQP($qpName).toDouble"
+          else if (tptString == "Option[String]") q"urlData.firstQP($qpName)"
+          else if (tptString == "Option[Int]") q"urlData.firstQP($qpName).map(_.toInt)"
+          else if (tptString == "Option[Long]") q"urlData.firstQP($qpName).map(_.toLong)"
+          else if (tptString == "Option[Double]") q"urlData.firstQP($qpName).map(_.toDouble)"
           else if (tptString == "Set[String]") q"urlData.getQP($qpName)"
-          else c.abort(paramTpt.pos, s"Can't handle type '$tptString' in query")
+          else if (tptString == "Set[Int]") q"urlData.getQP($qpName).map(_.toInt)"
+          else if (tptString == "Set[Long]") q"urlData.getQP($qpName).map(_.toLong)"
+          else if (tptString == "Set[Double]") q"urlData.getQP($qpName).map(_.toDouble)"
+          else if (SeqRegex.matches(tptString)) {
+            c.warning(
+              paramTpt.pos,
+              "Please use `Set` collection! Using an ordered collection can give you unexpected results!"
+            )
+            val SeqRegex(_, innerTpe) = tptString
+            if (innerTpe == "String") q"urlData.getQP($qpName).toSeq"
+            else if (innerTpe == "Int") q"urlData.getQP($qpName).toSeq.map(_.toInt)"
+            else if (innerTpe == "Long") q"urlData.getQP($qpName).toSeq.map(_.toLong)"
+            else if (innerTpe == "Double") q"urlData.getQP($qpName).toSeq.map(_.toDouble)"
+            else c.abort(paramTpt.pos, s"Can't handle type '$tptString' in query")
+          } else c.abort(paramTpt.pos, s"Can't handle type '$tptString' in query")
       }
 
       val queryParamPairs = queryFields.map {
@@ -155,10 +188,15 @@ private object RouteMacro {
       """
 
       val unapplyDef = q"""
-        def unapply(str: String): Option[(..$pathTpes, ..$queryTpes)] = { 
+        def unapply(str: String): Option[(..$pathTpes, ..$queryTpes)] = {
           val urlData = ba.sake.stone.utils.UrlData.fromString(str)
-          // TODO check if every part MATCHES !!!
-          Some(( ..$pathExtractors, ..$queryExtractors ))
+          if (urlData.pathParts.size != ${pps.size}) None
+          else {
+            scala.util.Try{
+              $literalValidators
+              ( ..$pathExtractors, ..$queryExtractors )
+            }.toOption
+          }
         }
       """
 
