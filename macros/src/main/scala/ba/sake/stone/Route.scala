@@ -110,7 +110,8 @@ private object RouteMacro {
           else if (tptString == "Int") q"urlData.pathParts($idx).toInt"
           else if (tptString == "Long") q"urlData.pathParts($idx).toLong"
           else if (tptString == "Double") q"urlData.pathParts($idx).toDouble"
-          else c.abort(c.enclosingPosition, s"Can't handle type '$tptString' in path")
+          else c.abort(tpt.pos, s"Can't handle type '$tptString' in path")
+//          
       }
 
       val pathParamPairs = pathFields.map(_._1).map {
@@ -137,7 +138,7 @@ private object RouteMacro {
           else if (tptString == "Long") q"urlData.getFirstQP($qpName).toLong"
           else if (tptString == "Double") q"urlData.getFirstQP($qpName).toDouble"
           else if (tptString == "Set[String]") q"urlData.getQP($qpName)"
-          else c.abort(c.enclosingPosition, s"Can't handle type '$tptString' in query")
+          else c.abort(paramTpt.pos, s"Can't handle type '$tptString' in query")
       }
 
       val queryParamPairs = queryFields.map {
