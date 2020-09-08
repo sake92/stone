@@ -11,12 +11,11 @@ class UsersRoute(p1: "users", val id: Long, val name: String)(
 object RoutesExample extends App {
 
   // construct
-  val route       = UsersRoute(1, "Sake")(123, Set("q1", "q2"))
-  val url: String = route.urlData.url
-  println(s"Constructed: $url")
+  val route = UsersRoute(1, "Sake")(123, Set("q1", "q2"))
+  println(s"Constructed: ${route.urlData}")
 
   // deconstruct
-  url match {
+  route.urlData.url match {
     case UsersRoute(id, name, a, qs) =>
       println(s"Deconstructed: $id, $name, $a, $qs")
   }

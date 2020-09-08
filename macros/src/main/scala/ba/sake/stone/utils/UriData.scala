@@ -13,6 +13,8 @@ case class UrlData(
 
   val url: String = path + Option.when(query.nonEmpty)(s"?$query").getOrElse("")
 
+  val asURI: URI = URI.create(url)
+
   def getQP(name: String): Set[String]      = qps(name)
   def firstQP(name: String): Option[String] = queryParams.get(name).flatMap(_.headOption)
   def getFirstQP(name: String): String      = firstQP(name).get
