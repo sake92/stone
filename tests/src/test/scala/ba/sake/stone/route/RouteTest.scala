@@ -17,7 +17,10 @@ class MyRoute(
     val qList: List[String]
 )
 
+@Route class MyRoute2(path1: "users", path2: "bla")()
+
 class urlDataTest extends FlatSpec with Matchers {
+  
 
   "Route" should "generate `urlData` property" in {
     val r =
@@ -64,6 +67,12 @@ class urlDataTest extends FlatSpec with Matchers {
       qList shouldBe List("list1")
       info("containers can be non empty")
     }
+    locally {
+      "/users/bla" match {
+        case MyRoute2() => println("Yesssssssss " )
+        case _ => fail("no match..")
+      }
+      info("generate unapply: Boolean when no variables (only literals) ")
+    }
   }
-
 }

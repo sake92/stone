@@ -18,6 +18,7 @@ class Route extends StaticAnnotation {
   def macroTransform(annottees: Any*): Any = macro RouteMacro.impl
 }
 
+// TODO handle default values of params
 private object RouteMacro {
 
   def impl(c: Context)(annottees: c.Expr[Any]*): c.Expr[Any] = {
@@ -145,9 +146,9 @@ private object RouteMacro {
       val queryTpes   = queryFields.map(_.tpt)
       val queryExtractors = qps.map {
         case ValDef(mods, paramName, paramTpt, _) =>
-          val qpName    = paramName.toString
-          val tptString = paramTpt.toString
-          val SeqLikeRegex  = "(Seq|List|Vector|Array|Buffer)\\[(String|Int|Long|Double)\\]".r
+          val qpName       = paramName.toString
+          val tptString    = paramTpt.toString
+          val SeqLikeRegex = "(Seq|List|Vector|Array|Buffer)\\[(String|Int|Long|Double)\\]".r
           if (tptString == "String") q"urlData.getFirstQP($qpName)"
           else if (tptString == "Int") q"urlData.getFirstQP($qpName).toInt"
           else if (tptString == "Long") q"urlData.getFirstQP($qpName).toLong"
@@ -166,7 +167,7 @@ private object RouteMacro {
               "Please use `Set` collection! Using an ordered collection can give you unexpected results!"
             )
             val SeqLikeRegex(seqTpe, innerTpe) = tptString
-            val toSeqLike = TermName(s"to$seqTpe")
+            val toSeqLike                      = TermName(s"to$seqTpe")
             if (innerTpe == "String") q"urlData.getQP($qpName).$toSeqLike"
             else if (innerTpe == "Int") q"urlData.getQP($qpName).$toSeqLike.map(_.toInt)"
             else if (innerTpe == "Long") q"urlData.getQP($qpName).$toSeqLike.map(_.toLong)"
@@ -188,18 +189,28 @@ private object RouteMacro {
         }
       """
 
-      val unapplyDef = q"""
-        def unapply(str: String): Option[(..$pathTpes, ..$queryTpes)] = {
-          val urlData = ba.sake.stone.utils.UrlData.fromString(str)
-          if (urlData.pathParts.size != ${pps.size}) None
-          else {
-            scala.util.Try{
+      val unapplyDef = if (pathTpes.isEmpty && queryTpes.isEmpty) {
+        q"""
+          def unapply(str: String): Boolean = {
+            val urlData = ba.sake.stone.utils.UrlData.fromString(str)
+            if (urlData.pathParts.size != ${pps.size}) false
+            else scala.util.Try {
+              $literalValidators
+            }.isSuccess
+          }
+        """
+      } else {
+        q"""
+          def unapply(str: String): Option[(..$pathTpes, ..$queryTpes)] = {
+            val urlData = ba.sake.stone.utils.UrlData.fromString(str)
+            if (urlData.pathParts.size != ${pps.size}) None
+            else scala.util.Try {
               $literalValidators
               ( ..$pathExtractors, ..$queryExtractors )
             }.toOption
           }
-        }
-      """
+        """
+      }
 
       val objTree = maybeObjTree.getOrElse { // create companion if doesnt exist
         q"""object ${modifiedClass.name.toTermName}"""
