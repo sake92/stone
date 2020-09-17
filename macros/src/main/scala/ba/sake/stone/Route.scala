@@ -13,12 +13,11 @@ import scala.reflect.macros.whitebox.Context
   * - String, Int, Long, Double
   * - Option, Seq, List, Vector, Array, Buffer of aboves
   */
-@compileTimeOnly("Please enable macro paradise to expand macro annotations")
+@compileTimeOnly("Please use `-Ymacro-annotations` to enable macro annotations")
 class Route extends StaticAnnotation {
   def macroTransform(annottees: Any*): Any = macro RouteMacro.impl
 }
 
-// TODO handle default values of params
 private object RouteMacro {
 
   def impl(c: Context)(annottees: c.Expr[Any]*): c.Expr[Any] = {
@@ -52,8 +51,8 @@ private object RouteMacro {
         // path params
         val pathParams = if (paramss.size >= 1) paramss(0) else List.empty
         val pathPartsField =
-          q"private val pathParts: Seq[String] = ${pathParams.map(_.name)}.map(_.toString)"
-        val pathField = q"""private val path: String = "/" + pathParts.mkString("/")"""
+          q"private val _pathParts: Seq[String] = ${pathParams.map(_.name)}.map(_.toString)"
+        val pathField = q"""private val _path: String = "/" + _pathParts.mkString("/")"""
 
         val pps: List[(ValDef, Tree, Option[Constant], Boolean)] = pathParams.map {
           case param @ q"$mods val $paramName: $paramTpt = $expr" =>
@@ -79,10 +78,10 @@ private object RouteMacro {
             paramSetTuple
         }
         val queryParamsField =
-          q"private val queryParams: Map[String, Set[String]] = $queryParamTuples.toMap"
+          q"private val _queryParams: Map[String, Set[String]] = $queryParamTuples.toMap"
         val queryField =
-          q"""private val query: String = 
-                queryParams.flatMap { case (qName, qValues) =>
+          q"""private val _query: String = 
+                _queryParams.flatMap { case (qName, qValues) =>
                   qValues.map(qValue => s"$$qName=$$qValue")
                 }
                 .mkString("&")
@@ -90,7 +89,7 @@ private object RouteMacro {
 
         val urlDataField = q"""val urlData: ba.sake.stone.utils.UrlData = 
             ba.sake.stone.utils.UrlData(
-              path, pathParts, query, queryParams
+              _path, _pathParts, _query, _queryParams
             )
           """
 
@@ -120,8 +119,6 @@ private object RouteMacro {
             case None        => paramTpt
           }
       }
-      // TODO 
-      // regex <[a-z]> specijalno izvadit String koji matcha 1 path tim regexom
 
       val pathExtractorsAndValidators = pps.zipWithIndex.map {
         case ((_, tpt, None, isField), idx) =>
@@ -136,16 +133,20 @@ private object RouteMacro {
           res -> isField
         case ((_, tpt, Some(lit), isField), idx) =>
           val tptString = tpt.toString
-
+          val litValue  = lit.value.toString
           val res =
-            if (lit.value == "*") {
+            if (litValue == "*") {
               q"""urlData.pathParts.drop($idx).mkString("/")"""
+            } else if (litValue.startsWith("<") && litValue.endsWith(">")) {
+              val regex    = litValue.drop(1).dropRight(1)
+              val expected = q"urlData.pathParts($idx)"
+              q"""if ($expected.matches($regex)) $expected
+                  else throw new IllegalArgumentException("Path regex mismatch")"""
             } else {
               val expected = q"urlData.pathParts($idx)"
-              q"""if ($lit != $expected)
-                throw new IllegalArgumentException("Path literal mismatch")"""
+              q"""if ($lit == $expected) $lit
+                  else throw new IllegalArgumentException("Path literal mismatch")"""
             }
-          // else c.abort(tpt.pos, s"Can't handle type '$tptString' in path")
           res -> isField
       }
       val pathExtractors = pathExtractorsAndValidators.filter(_._2).map(_._1)

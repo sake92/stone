@@ -18,7 +18,7 @@ class UsersRoute( /* first list contains path params */
     p1: "users",      // fixed
     val id: Long,     // variable
     val name: String
-)( /* second list contains query params (those after ?) */
+)(                /* second list contains query params (those after ?) */
     val minAge: Int,      // mandatory
     val opt: Option[Int], // optional
     val qs: Set[String]   // multi-valued
@@ -35,6 +35,21 @@ val redirectUrl = route.urlData.url // /users/1/Sake?minAge=18&opt=456&qs=q1
   case _ => println("404 Not Found")
 }
 ```
+
+### Match path segment regex
+Regex is supported, just put it inside angle brackets:
+```scala
+@Route class RegexRoute(p1: "users", val name: "<[a-z]+>")()
+```
+This would match a string `/users/tom`, but not `/users/Tom`.
+
+### Match multiple path segments
+You can match on multi-segment path with a `*`:
+```scala
+@Route class StarRoute(p1: "files", val path: "*")()
+```
+This would match a string `/files/images/abc.jpg` etc.  
+Basically, anything starting with `/files`...
 
 ---
 
