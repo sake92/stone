@@ -55,20 +55,15 @@ private object RouteMacro {
           q"private val pathParts: Seq[String] = ${pathParams.map(_.name)}.map(_.toString)"
         val pathField = q"""private val path: String = "/" + pathParts.mkString("/")"""
 
-        val pps: List[(ValDef, Tree, Option[Constant])] = pathParams.map {
+        val pps: List[(ValDef, Tree, Option[Constant], Boolean)] = pathParams.map {
           case param @ q"$mods val $paramName: $paramTpt = $expr" =>
             //println( showRaw(paramTpt) ) // ooooooopaaaaaaaa
-           // TODO param.isDef
-            paramTpt match {
+            val isField = !param.mods.hasFlag(Flag.LOCAL)
+            paramTpt match { // TODO limit to String literals only !!!
               case SingletonTypeTree(Literal(lit @ Constant(litValue))) =>
-                (param, paramTpt, Some(lit))
-                // TODO ne vraćat literal, nego Boolean da li je val/var
-                // val se extractuju:
-                // string.. "abc", 
-                // "*" -> specijalno izvadit String koji matcha 0+ pathEva !!! npr /a/b/c
-                // "<[a-z]>" specijalno izvadit String koji matcha 1 path tim regexom
+                (param, paramTpt, Some(lit), isField)
               case _ =>
-                (param, paramTpt, None)
+                (param, paramTpt, None, isField)
             }
         }
 
@@ -117,30 +112,51 @@ private object RouteMacro {
     val modifiedObject = {
 
       /* path */
-      val pathFields = pps.filter(!_._3.isDefined)
-      val pathTpes   = pathFields.map(_._2)
-      val pathExtractors = pps.zipWithIndex.filter(!_._1._3.isDefined).map {
-        case ((_, tpt, _), idx) =>
+      val (pathFields, pathParams) = pps.partition(_._4)
+      val pathTpes = pathFields.map {
+        case (_, paramTpt, maybeLiteral, _) =>
+          maybeLiteral match {
+            case Some(value) => tq"String"
+            case None        => paramTpt
+          }
+      }
+      // TODO 
+      // regex <[a-z]> specijalno izvadit String koji matcha 1 path tim regexom
+
+      val pathExtractorsAndValidators = pps.zipWithIndex.map {
+        case ((_, tpt, None, isField), idx) =>
           val tptString = tpt.toString
-          if (tptString == "String") q"urlData.pathParts($idx)"
-          else if (tptString == "Int") q"urlData.pathParts($idx).toInt"
-          else if (tptString == "Long") q"urlData.pathParts($idx).toLong"
-          else if (tptString == "Double") q"urlData.pathParts($idx).toDouble"
-          else c.abort(tpt.pos, s"Can't handle type '$tptString' in path")
-      }
-      val literalValidators = pps.zipWithIndex.filter(_._1._3.isDefined).map {
-        case ((_, tpt, Some(lit)), idx) =>
-          val expected = q"urlData.pathParts($idx)"
-          q"""if ($lit != $expected)
+          val res = tptString match {
+            case "String" => q"urlData.pathParts($idx)"
+            case "Int"    => q"urlData.pathParts($idx).toInt"
+            case "Long"   => q"urlData.pathParts($idx).toLong"
+            case "Double" => q"urlData.pathParts($idx).toDouble"
+            case _        => c.abort(tpt.pos, s"Can't handle type '$tptString' in path")
+          }
+          res -> isField
+        case ((_, tpt, Some(lit), isField), idx) =>
+          val tptString = tpt.toString
+
+          val res =
+            if (lit.value == "*") {
+              q"""urlData.pathParts.drop($idx).mkString("/")"""
+            } else {
+              val expected = q"urlData.pathParts($idx)"
+              q"""if ($lit != $expected)
                 throw new IllegalArgumentException("Path literal mismatch")"""
+            }
+          // else c.abort(tpt.pos, s"Can't handle type '$tptString' in path")
+          res -> isField
       }
+      val pathExtractors = pathExtractorsAndValidators.filter(_._2).map(_._1)
+      val pathValidators = pathExtractorsAndValidators.filter(!_._2).map(_._1)
 
       val pathParamPairs = pathFields.map(_._1).map {
         case param @ q"$mods val $paramName: $paramTpt = $expr" =>
           q"$paramName: $paramTpt"
       }
-      val pathParams = pps.map {
-        case (valDef, _, maybeLiteral) =>
+      val pathParamValues = pps.map {
+        case (valDef, _, maybeLiteral, _) =>
           maybeLiteral match {
             case Some(lit) => q"$lit"
             case None      => q"${valDef.name}"
@@ -186,12 +202,12 @@ private object RouteMacro {
         case param @ q"$mods val $paramName: $paramTpt = $expr" =>
           q"$paramName: $paramTpt"
       }
-      val queryParams = queryFields.map(_.name)
+      val queryParamValues = queryFields.map(_.name)
 
       /* the main stuff */
       val applyDef = q"""
         def apply(..$pathParamPairs)(..$queryParamPairs): ${modifiedClass.name} = { 
-          new ${modifiedClass.name}(..$pathParams)(..$queryParams)
+          new ${modifiedClass.name}(..$pathParamValues)(..$queryParamValues)
         }
       """
 
@@ -199,19 +215,15 @@ private object RouteMacro {
         q"""
           def unapply(str: String): Boolean = {
             val urlData = ba.sake.stone.utils.UrlData.fromString(str)
-            if (urlData.pathParts.size != ${pps.size}) false
-            else scala.util.Try {
-              $literalValidators
-            }.isSuccess
+            scala.util.Try { $pathValidators }.isSuccess
           }
         """
       } else {
         q"""
           def unapply(str: String): Option[(..$pathTpes, ..$queryTpes)] = {
             val urlData = ba.sake.stone.utils.UrlData.fromString(str)
-            if (urlData.pathParts.size != ${pps.size}) None
-            else scala.util.Try {
-              $literalValidators
+            scala.util.Try {
+              $pathValidators
               ( ..$pathExtractors, ..$queryExtractors )
             }.toOption
           }

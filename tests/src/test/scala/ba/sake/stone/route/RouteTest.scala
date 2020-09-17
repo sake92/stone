@@ -69,7 +69,7 @@ class RouteTest extends StoneTest {
     }
     locally {
       "/users/bla" match {
-        case MyRoute2() => println("Yesssssssss " )
+        case MyRoute2() => succeed
         case _ => fail("no match..")
       }
       info("generate unapply: Boolean when no variables (only literals) ")
