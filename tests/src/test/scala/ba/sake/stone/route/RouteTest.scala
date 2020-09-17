@@ -17,10 +17,7 @@ class MyRoute(
     val qList: List[String]
 )
 
-@Route class MyRoute2(path1: "users", path2: "bla")()
-
 class RouteTest extends StoneTest {
-  
 
   "Route" should "generate `urlData` property" in {
     val r =
@@ -29,7 +26,10 @@ class RouteTest extends StoneTest {
     urlData.path shouldBe "/users/5/Sake/7.123"
     urlData.pathParts shouldBe Seq("users", "5", "Sake", "7.123")
     urlData.query shouldBe "a=7&qSet=aBc&qSet=deF"
-    urlData.queryParams should contain allElementsOf Set("a" -> Set("7"), "qSet" -> Set("aBc", "deF"))
+    urlData.queryParams should contain allElementsOf Set(
+      "a"    -> Set("7"),
+      "qSet" -> Set("aBc", "deF")
+    )
   }
 
   it should "generate apply method" in {
@@ -37,10 +37,14 @@ class RouteTest extends StoneTest {
     r.urlData.path shouldBe "/users/5/Sake/7.123"
     r.urlData.pathParts shouldBe Seq("users", "5", "Sake", "7.123")
     r.urlData.query shouldBe "a=7&qSet=aBc&qSet=deF"
-    r.urlData.queryParams should contain allElementsOf Set ("a" -> Set("7"), "qSet" -> Set("aBc", "deF"))
+    r.urlData.queryParams should contain allElementsOf Set(
+      "a"    -> Set("7"),
+      "qSet" -> Set("aBc", "deF")
+    )
   }
 
   it should "generate unapply method (extractor)" in {
+
     locally {
       val MyRoute(id, name, rate, a, qOpt, qSet, qSeq, qList) =
         "/users/5/Sake/7.123?a=444"
@@ -68,11 +72,39 @@ class RouteTest extends StoneTest {
       info("containers can be non empty")
     }
     locally {
+      @Route class MyRoute2(path1: "users", path2: "bla")()
+
       "/users/bla" match {
         case MyRoute2() => succeed
-        case _ => fail("no match..")
+        case _          => fail("no match..")
       }
       info("generate unapply: Boolean when no variables (only literals) ")
+    }
+  }
+
+  it should "handle regex pattern" in {
+    @Route class RegexRoute(p1: "users", val name: "<[a-z]+>", val id: "<\\d+>")()
+
+    "users/sake/123" match {
+      case RegexRoute(name, id) => succeed
+      case _                    => fail
+    }
+    "users/sAke/123" match {
+      case RegexRoute(name, id) => fail
+      case _                    => succeed
+    }
+    "users/sake/123a" match {
+      case RegexRoute(name, id) => fail
+      case _                    => succeed
+    }
+  }
+
+  it should "handle star multisegment pattern" in {
+    @Route class StarRoute(p1: "users", val path: "*")()
+
+    "users/abc/def?aaaaa=b" match {
+      case StarRoute(path) => path shouldBe "abc/def"
+      case _              => fail
     }
   }
 }
