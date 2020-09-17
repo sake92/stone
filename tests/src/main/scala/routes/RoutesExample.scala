@@ -26,3 +26,15 @@ object RoutesExample extends App {
     case _ => println("404 Not Found")
   }
 }
+
+object Bla extends App {
+
+  @Route class BlaRoute(p1: "users", val bla: "*")()
+
+  "users/abc/def?aaaaa=b" match {
+    case BlaRoute(bla) =>
+      println(bla)
+    case _ => println("404 Not Found")
+  }
+
+}
