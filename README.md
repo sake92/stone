@@ -14,24 +14,24 @@ In Play, Angular and other frameworks you'd write something like this:
 With `@Route` macro you write this:
 ```scala
 @Route
-class UsersRoute(
-    p1: "users", // fixed path
-    val id: Long, // path variable
+class UsersRoute( /* first list contains path params */
+    p1: "users",      // fixed
+    val id: Long,     // variable
     val name: String
-)(
-    val minAge: Int,      // query param, mandatory
-    val opt: Option[Int], // query param, optional
-    val qs: Set[String]   // query param, multi
+)( /* second list contains query params (those after ?) */
+    val minAge: Int,      // mandatory
+    val opt: Option[Int], // optional
+    val qs: Set[String]   // multi-valued
 )
 
 // construct a URL, type-safely
-val route = UsersRoute(1, "Sake")(123, Set("q1"), Some(18))
-val redirectUrl = route.urlData.url // /users/1/Sake?a=123&qs=q1&minAge=18
+val route = UsersRoute(1, "Sake")(123, Some(456), Set("q1"))
+val redirectUrl = route.urlData.url // /users/1/Sake?minAge=18&opt=456&qs=q1
 
 // deconstruct a string URL to type-safe data
 "users/1/Sake?minAge=123&qs=q1&qs=q2&opt=456" match {
-  case UsersRoute(id, name, minAge, qs, opt) =>
-    println(s"$id, $name, $minAge, $qs, $opt") // 1, Sake, 123, Set(q1, q2), Some(456)
+  case UsersRoute(id, name, minAge, opt, qs) =>
+    println(s"$id, $name, $minAge, $opt, $qs") // 1, Sake, 123, Some(456), Set(q1, q2)
   case _ => println("404 Not Found")
 }
 ```

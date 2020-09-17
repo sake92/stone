@@ -1,8 +1,7 @@
 package ba.sake.stone.utils
 
-import org.scalatest.{FlatSpec, Matchers}
-
-class UrlDataTest extends FlatSpec with Matchers {
+import ba.sake.stone.StoneTest
+class UrlDataTest extends StoneTest {
   "UrlData" should "create new UrlData if URL is valid" in {
     val urlData = UrlData.fromString("/users/5?a=7&qs=aBc&qs=deF")
     urlData.path shouldBe "/users/5"

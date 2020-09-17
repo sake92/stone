@@ -1,6 +1,5 @@
 package ba.sake.stone
 
-import org.scalatest.{FlatSpec, Matchers}
 import fixtures._
 
 @Wither
@@ -11,7 +10,7 @@ case class Test1(
     list: List[Data]
 )
 
-class CaseClassTest extends FlatSpec with Matchers {
+class CaseClassTest extends StoneTest {
   val obj = Test1(Data(1), Data(2), None, Nil)
 
   val newData  = Data(42)

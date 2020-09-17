@@ -56,11 +56,17 @@ private object RouteMacro {
         val pathField = q"""private val path: String = "/" + pathParts.mkString("/")"""
 
         val pps: List[(ValDef, Tree, Option[Constant])] = pathParams.map {
-          case param @ ValDef(mods, paramName, paramTpt, _) =>
+          case param @ q"$mods val $paramName: $paramTpt = $expr" =>
             //println( showRaw(paramTpt) ) // ooooooopaaaaaaaa
+           // TODO param.isDef
             paramTpt match {
               case SingletonTypeTree(Literal(lit @ Constant(litValue))) =>
                 (param, paramTpt, Some(lit))
+                // TODO ne vraćat literal, nego Boolean da li je val/var
+                // val se extractuju:
+                // string.. "abc", 
+                // "*" -> specijalno izvadit String koji matcha 0+ pathEva !!! npr /a/b/c
+                // "<[a-z]>" specijalno izvadit String koji matcha 1 path tim regexom
               case _ =>
                 (param, paramTpt, None)
             }
@@ -69,7 +75,7 @@ private object RouteMacro {
         // query params
         val queryParams = if (paramss.size == 2) paramss(1) else List.empty
         val queryParamTuples = queryParams.map {
-          case param @ ValDef(mods, paramName, paramTpt, _) =>
+          case param @ q"$mods val $paramName: $paramTpt = $expr" =>
             val paramSetTuple = paramTpt match {
               case AppliedTypeTree(hkt, args) =>
                 q"(${paramName.decodedName.toString()}, $paramName.map(_.toString).toSet)"
@@ -130,7 +136,7 @@ private object RouteMacro {
       }
 
       val pathParamPairs = pathFields.map(_._1).map {
-        case ValDef(mods, paramName, paramTpt, _) =>
+        case param @ q"$mods val $paramName: $paramTpt = $expr" =>
           q"$paramName: $paramTpt"
       }
       val pathParams = pps.map {
@@ -145,7 +151,7 @@ private object RouteMacro {
       val queryFields = qps
       val queryTpes   = queryFields.map(_.tpt)
       val queryExtractors = qps.map {
-        case ValDef(mods, paramName, paramTpt, _) =>
+        case param @ q"$mods val $paramName: $paramTpt = $expr" =>
           val qpName       = paramName.toString
           val tptString    = paramTpt.toString
           val SeqLikeRegex = "(Seq|List|Vector|Array|Buffer)\\[(String|Int|Long|Double)\\]".r
@@ -177,7 +183,7 @@ private object RouteMacro {
       }
 
       val queryParamPairs = queryFields.map {
-        case ValDef(mods, paramName, paramTpt, _) =>
+        case param @ q"$mods val $paramName: $paramTpt = $expr" =>
           q"$paramName: $paramTpt"
       }
       val queryParams = queryFields.map(_.name)

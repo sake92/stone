@@ -1,7 +1,5 @@
 package ba.sake.stone
 
-import org.scalatest.{FlatSpec, Matchers}
-
 object Stuff {
   trait Inner
 }
@@ -12,7 +10,7 @@ class Stuff(
 )
 
 
-class CompanionTest extends FlatSpec with Matchers {
+class CompanionTest extends StoneTest {
   val obj     = new Stuff(new Stuff.Inner {})
   val newData = new Stuff.Inner {}
 

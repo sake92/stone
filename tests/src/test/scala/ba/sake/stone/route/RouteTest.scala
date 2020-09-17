@@ -1,7 +1,7 @@
 package ba.sake.stone.route
 
-import org.scalatest.{FlatSpec, Matchers}
 import ba.sake.stone.Route
+import ba.sake.stone.StoneTest
 
 @Route
 class MyRoute(
@@ -19,7 +19,7 @@ class MyRoute(
 
 @Route class MyRoute2(path1: "users", path2: "bla")()
 
-class urlDataTest extends FlatSpec with Matchers {
+class RouteTest extends StoneTest {
   
 
   "Route" should "generate `urlData` property" in {
@@ -29,7 +29,7 @@ class urlDataTest extends FlatSpec with Matchers {
     urlData.path shouldBe "/users/5/Sake/7.123"
     urlData.pathParts shouldBe Seq("users", "5", "Sake", "7.123")
     urlData.query shouldBe "a=7&qSet=aBc&qSet=deF"
-    urlData.queryParams should contain allOf ("a" -> Set("7"), "qSet" -> Set("aBc", "deF"))
+    urlData.queryParams should contain allElementsOf Set("a" -> Set("7"), "qSet" -> Set("aBc", "deF"))
   }
 
   it should "generate apply method" in {
@@ -37,7 +37,7 @@ class urlDataTest extends FlatSpec with Matchers {
     r.urlData.path shouldBe "/users/5/Sake/7.123"
     r.urlData.pathParts shouldBe Seq("users", "5", "Sake", "7.123")
     r.urlData.query shouldBe "a=7&qSet=aBc&qSet=deF"
-    r.urlData.queryParams should contain allOf ("a" -> Set("7"), "qSet" -> Set("aBc", "deF"))
+    r.urlData.queryParams should contain allElementsOf Set ("a" -> Set("7"), "qSet" -> Set("aBc", "deF"))
   }
 
   it should "generate unapply method (extractor)" in {
