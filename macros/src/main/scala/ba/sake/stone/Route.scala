@@ -4,6 +4,7 @@ import scala.language.experimental.macros
 
 import scala.annotation.{compileTimeOnly, StaticAnnotation}
 import scala.reflect.macros.whitebox.Context
+import ba.sake.stone.utils.UrlData
 
 /**
   * Handles these types in path:
@@ -16,6 +17,10 @@ import scala.reflect.macros.whitebox.Context
 @compileTimeOnly("Please use `-Ymacro-annotations` to enable macro annotations")
 class Route extends StaticAnnotation {
   def macroTransform(annottees: Any*): Any = macro RouteMacro.impl
+}
+
+trait RouteImpl {
+  def urlData: UrlData
 }
 
 private object RouteMacro {
@@ -45,8 +50,7 @@ private object RouteMacro {
                        extends { ..$earlydefns } with ..$parents { $self =>
                 ..$stats
               }""" =>
-
-              val paramListsCount = paramss.size
+        val paramListsCount = paramss.size
         if (paramListsCount > 2)
           c.abort(c.enclosingPosition, "Route can only have upto 2 parameter groups!")
 
@@ -97,8 +101,9 @@ private object RouteMacro {
             )
           """
 
+        val newParents = parents.appended(tq"ba.sake.stone.RouteImpl")
         (q"""$mods class $tpname[..$tparams] $ctorMods(...$paramss)
-                    extends { ..$earlydefns } with ..$parents { $self =>
+                    extends { ..$earlydefns } with ..$newParents { $self =>
               ..$stats
 
               $pathPartsField
@@ -210,16 +215,17 @@ private object RouteMacro {
       val queryParamValues = queryFields.map(_.name)
 
       /* the main stuff */
-      val applyDef = if(paramListsCount == 2)  q"""
+      val applyDef =
+        if (paramListsCount == 2) q"""
         def apply(..$pathParamPairs)(..$queryParamPairs): ${modifiedClass.name} = { 
           new ${modifiedClass.name}(..$pathParamValues)(..$queryParamValues)
         }
-      """ 
-      else q"""
+      """
+        else q"""
         def apply(..$pathParamPairs): ${modifiedClass.name} = { 
           new ${modifiedClass.name}(..$pathParamValues)
         }
-      """ 
+      """
 
       val unapplyDef = if (pathTpes.isEmpty && queryTpes.isEmpty) {
         q"""

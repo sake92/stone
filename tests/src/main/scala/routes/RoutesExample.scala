@@ -1,6 +1,7 @@
 package routes
 
 import ba.sake.stone.Route
+import ba.sake.stone.RouteImpl
 
 object RoutesExample extends App {
 
@@ -50,9 +51,9 @@ object EmptyRoutesExample extends App {
   @Route class EmptyRoute1()
   @Route class EmptyRoute2()()
 
-  val r0 = EmptyRoute0
-  val r1 = EmptyRoute1()
-  val r2 = EmptyRoute2()()
+  val r0: RouteImpl = EmptyRoute0()
+  val r1: RouteImpl = EmptyRoute1()
+  val r2: RouteImpl = EmptyRoute2()()
 
   "/" match {
     case EmptyRoute0() => println("0")
