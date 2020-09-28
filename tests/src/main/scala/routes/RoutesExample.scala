@@ -43,3 +43,24 @@ object StarExample extends App {
     case _ => println("404 Not Found")
   }
 }
+
+object EmptyRoutesExample extends App {
+
+  @Route class EmptyRoute0
+  @Route class EmptyRoute1()
+  @Route class EmptyRoute2()()
+
+  val r0 = EmptyRoute0
+  val r1 = EmptyRoute1()
+  val r2 = EmptyRoute2()()
+
+  "/" match {
+    case EmptyRoute0() => println("0")
+  }
+  "/" match {
+    case EmptyRoute1() => println("1")
+  }
+  "/" match {
+    case EmptyRoute2() => println("2")
+  }
+}

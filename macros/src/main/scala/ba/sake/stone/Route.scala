@@ -6,12 +6,12 @@ import scala.annotation.{compileTimeOnly, StaticAnnotation}
 import scala.reflect.macros.whitebox.Context
 
 /**
-  * Only handles these types in path:
+  * Handles these types in path:
   * - String, Int, Long, Double
   *
-  * Only handles these types in query:
+  * Handles these types in query:
   * - String, Int, Long, Double
-  * - Option, Seq, List, Vector, Array, Buffer of aboves
+  * - Option, Seq, List, Vector, Array, Buffer of the above
   */
 @compileTimeOnly("Please use `-Ymacro-annotations` to enable macro annotations")
 class Route extends StaticAnnotation {
@@ -40,16 +40,18 @@ private object RouteMacro {
   private class Helper[C <: Context](val c: C)(clsTree: C#Tree, maybeObjTree: Option[C#Tree]) {
     import c.universe._
 
-    val (modifiedClass, pps, qps) = clsTree match {
+    val (modifiedClass, pps, qps, paramListsCount) = clsTree match {
       case q"""$mods class $tpname[..$tparams] $ctorMods(...$paramss)
                        extends { ..$earlydefns } with ..$parents { $self =>
                 ..$stats
               }""" =>
-        if (paramss.size != 2)
-          c.abort(c.enclosingPosition, "Route must have exactly 2 parameter groups!")
+
+              val paramListsCount = paramss.size
+        if (paramListsCount > 2)
+          c.abort(c.enclosingPosition, "Route can only have upto 2 parameter groups!")
 
         // path params
-        val pathParams = if (paramss.size >= 1) paramss(0) else List.empty
+        val pathParams = if (paramListsCount >= 1) paramss(0) else List.empty
         val pathPartsField =
           q"private val _pathParts: Seq[String] = ${pathParams.map(_.name)}.map(_.toString)"
         val pathField = q"""private val _path: String = "/" + _pathParts.mkString("/")"""
@@ -58,8 +60,10 @@ private object RouteMacro {
           case param @ q"$mods val $paramName: $paramTpt = $expr" =>
             //println( showRaw(paramTpt) ) // ooooooopaaaaaaaa
             val isField = !param.mods.hasFlag(Flag.LOCAL)
-            paramTpt match { // TODO limit to String literals only !!!
+            paramTpt match {
               case SingletonTypeTree(Literal(lit @ Constant(litValue))) =>
+                if (!(lit.tpe =:= typeOf[String]))
+                  c.abort(paramTpt.pos, "@Route can only handle `String` literal types.")
                 (param, paramTpt, Some(lit), isField)
               case _ =>
                 (param, paramTpt, None, isField)
@@ -67,7 +71,7 @@ private object RouteMacro {
         }
 
         // query params
-        val queryParams = if (paramss.size == 2) paramss(1) else List.empty
+        val queryParams = if (paramListsCount == 2) paramss(1) else List.empty
         val queryParamTuples = queryParams.map {
           case param @ q"$mods val $paramName: $paramTpt = $expr" =>
             val paramSetTuple = paramTpt match {
@@ -104,7 +108,7 @@ private object RouteMacro {
               $queryField
 
               $urlDataField
-        }""", pps, queryParams)
+        }""", pps, queryParams, paramListsCount)
     }
 
     /* apply && unapply */
@@ -206,11 +210,16 @@ private object RouteMacro {
       val queryParamValues = queryFields.map(_.name)
 
       /* the main stuff */
-      val applyDef = q"""
+      val applyDef = if(paramListsCount == 2)  q"""
         def apply(..$pathParamPairs)(..$queryParamPairs): ${modifiedClass.name} = { 
           new ${modifiedClass.name}(..$pathParamValues)(..$queryParamValues)
         }
-      """
+      """ 
+      else q"""
+        def apply(..$pathParamPairs): ${modifiedClass.name} = { 
+          new ${modifiedClass.name}(..$pathParamValues)
+        }
+      """ 
 
       val unapplyDef = if (pathTpes.isEmpty && queryTpes.isEmpty) {
         q"""
